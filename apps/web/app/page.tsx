@@ -15,6 +15,9 @@ export default async function Home() {
 
   return (
     <div>
+      <div>
+        <h1> Check condition for the staging area </h1>
+      </div>
       <h1>Hello from BMS Web App 🚀</h1>
 
       <h2>Users in Database</h2>
