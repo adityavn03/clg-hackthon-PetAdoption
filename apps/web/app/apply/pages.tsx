@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 export default function ApplyPage() {
+  const searchParams = useSearchParams();
+  const petIdFromUrl = searchParams.get("petId") ?? "";
   const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    petId: "",
+    applicantName: "",
+    applicantEmail: "",
+    applicantPhone: "",
+    applicantAddress: "",
+    petId: petIdFromUrl,
     message: "",
   });
 
@@ -35,71 +38,68 @@ export default function ApplyPage() {
         body: JSON.stringify(form),
       });
 
-      setSuccess("🎉 Application submitted successfully!");
+      setSuccess("Application submitted successfully!");
       setForm({
-        name: "",
-        email: "",
-        phone: "",
-        address: "",
-        petId: "",
+        applicantName: "",
+        applicantEmail: "",
+        applicantPhone: "",
+        applicantAddress: "",
+        petId: petIdFromUrl,
         message: "",
       });
     } catch (err) {
       console.error(err);
-      setSuccess("❌ Something went wrong!");
+      setSuccess("Something went wrong!");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
-      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl p-8">
+    <div style={styles.page}>
+      <div style={styles.card}>
         
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800">
-            🐶 Adopt a Friend
-          </h1>
-          <p className="text-gray-500 mt-2">
-            Fill out the form below to apply for adoption
+        <div style={{ textAlign: "center", marginBottom: 18 }}>
+          <h1 style={{ margin: "0 0 6px", fontSize: 34 }}>Adoption application</h1>
+          <p style={{ margin: 0, color: "#b8c2e8" }}>
+            Submit your details and we’ll get back to you.
           </p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
           
           {/* Row 1 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div style={styles.row2}>
             <input
-              name="name"
-              value={form.name}
+              name="applicantName"
+              value={form.applicantName}
               onChange={handleChange}
               placeholder="Full Name"
-              className="input"
+              style={styles.input}
               required
             />
 
             <input
-              name="email"
+              name="applicantEmail"
               type="email"
-              value={form.email}
+              value={form.applicantEmail}
               onChange={handleChange}
               placeholder="Email Address"
-              className="input"
+              style={styles.input}
               required
             />
           </div>
 
           {/* Row 2 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div style={styles.row2}>
             <input
-              name="phone"
-              value={form.phone}
+              name="applicantPhone"
+              value={form.applicantPhone}
               onChange={handleChange}
-              placeholder="Phone Number"
-              className="input"
-              required
+              placeholder="Phone Number (optional)"
+              style={styles.input}
             />
 
             <input
@@ -107,19 +107,18 @@ export default function ApplyPage() {
               value={form.petId}
               onChange={handleChange}
               placeholder="Pet ID"
-              className="input"
+              style={styles.input}
               required
             />
           </div>
 
           {/* Address */}
           <input
-            name="address"
-            value={form.address}
+            name="applicantAddress"
+            value={form.applicantAddress}
             onChange={handleChange}
-            placeholder="Address"
-            className="input"
-            required
+            placeholder="Address (optional)"
+            style={styles.input}
           />
 
           {/* Message */}
@@ -129,14 +128,24 @@ export default function ApplyPage() {
             onChange={handleChange}
             placeholder="Why do you want to adopt this pet?"
             rows={4}
-            className="input"
+            style={{ ...styles.input, resize: "vertical" }}
           />
 
           {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl text-white font-semibold bg-indigo-600 hover:bg-indigo-700 transition duration-200"
+            style={{
+              width: "100%",
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "linear-gradient(135deg, #5b7cfa, #9b6bff)",
+              color: "white",
+              fontWeight: 800,
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.7 : 1,
+            }}
           >
             {loading ? "Submitting..." : "Submit Application"}
           </button>
@@ -144,28 +153,52 @@ export default function ApplyPage() {
 
         {/* Success Message */}
         {success && (
-          <div className="mt-6 text-center text-lg font-medium text-green-600">
+          <div
+            style={{
+              marginTop: 14,
+              textAlign: "center",
+              fontWeight: 700,
+              color: success.includes("success") ? "#6ef2c4" : "#ffd59a",
+            }}
+          >
             {success}
           </div>
         )}
       </div>
 
-      {/* Tailwind Input Style */}
-      <style jsx>{`
-        .input {
-          width: 100%;
-          padding: 12px 14px;
-          border-radius: 12px;
-          border: 1px solid #e5e7eb;
-          outline: none;
-          transition: all 0.2s ease;
-          font-size: 14px;
-        }
-        .input:focus {
-          border-color: #6366f1;
-          box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-        }
-      `}</style>
     </div>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  page: {
+    minHeight: "calc(100vh - 120px)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+  },
+  card: {
+    width: "100%",
+    maxWidth: 760,
+    padding: 18,
+    borderRadius: 18,
+    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(255,255,255,0.10)",
+    backdropFilter: "blur(8px)",
+  },
+  row2: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 10,
+  },
+  input: {
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(0,0,0,0.25)",
+    color: "#eaf0ff",
+    outline: "none",
+  },
+};

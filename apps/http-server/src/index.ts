@@ -9,18 +9,8 @@ app.get("/",(req,res)=>{
 }) 
 
 app.post("/addrecord",async(req,res)=>{
-    const user=await prisma.user.create({
-    data: {
-      username: req.body.username,
-      password: req.body.password,
-    }
-  });
+    
 
-  
-  res.json({
-    message:"signup request successful",
-    id:user.id,
-  });
 })
 app.delete("/addrecord1",async(req,res)=>{
     const user = await prisma.user.delete({
