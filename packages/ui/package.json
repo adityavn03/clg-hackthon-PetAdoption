@@ -17,6 +17,8 @@
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
     "eslint": "^9.39.1",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^0.577.0",
     "typescript": "5.9.2"
   },
   "dependencies": {

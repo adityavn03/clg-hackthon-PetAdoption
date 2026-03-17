@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 export default function ApplyPage() {
   const searchParams = useSearchParams();
@@ -56,149 +57,91 @@ export default function ApplyPage() {
   };
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        
-        {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: 18 }}>
-          <h1 style={{ margin: "0 0 6px", fontSize: 34 }}>Adoption application</h1>
-          <p style={{ margin: 0, color: "#b8c2e8" }}>
-            Submit your details and we’ll get back to you.
+    <main style={{ marginTop: 18 }}>
+      <div className="row">
+        <div>
+          <h1 className="h1" style={{ marginBottom: 6 }}>
+            Adoption application
+          </h1>
+          <p className="muted" style={{ margin: 0 }}>
+            We’ll review your application and update the status.
           </p>
         </div>
+        <Link href="/pets" className="btn">
+          Browse pets
+        </Link>
+      </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
-          
-          {/* Row 1 */}
-          <div style={styles.row2}>
+      <section className="panel" style={{ marginTop: 14 }}>
+        <form onSubmit={handleSubmit} className="grid" style={{ gap: 12 }}>
+          <div className="formGrid2">
             <input
+              className="field"
               name="applicantName"
               value={form.applicantName}
               onChange={handleChange}
-              placeholder="Full Name"
-              style={styles.input}
+              placeholder="Full name"
               required
             />
-
             <input
+              className="field"
               name="applicantEmail"
               type="email"
               value={form.applicantEmail}
               onChange={handleChange}
-              placeholder="Email Address"
-              style={styles.input}
+              placeholder="Email address"
               required
             />
           </div>
 
-          {/* Row 2 */}
-          <div style={styles.row2}>
+          <div className="formGrid2">
             <input
+              className="field"
               name="applicantPhone"
               value={form.applicantPhone}
               onChange={handleChange}
-              placeholder="Phone Number (optional)"
-              style={styles.input}
+              placeholder="Phone (optional)"
             />
-
             <input
+              className="field"
               name="petId"
               value={form.petId}
               onChange={handleChange}
               placeholder="Pet ID"
-              style={styles.input}
               required
             />
           </div>
 
-          {/* Address */}
           <input
+            className="field"
             name="applicantAddress"
             value={form.applicantAddress}
             onChange={handleChange}
             placeholder="Address (optional)"
-            style={styles.input}
           />
 
-          {/* Message */}
           <textarea
+            className="field"
             name="message"
             value={form.message}
             onChange={handleChange}
-            placeholder="Why do you want to adopt this pet?"
+            placeholder="Why do you want to adopt this pet? (optional)"
             rows={4}
-            style={{ ...styles.input, resize: "vertical" }}
+            style={{ resize: "vertical" }}
           />
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "12px 14px",
-              borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "linear-gradient(135deg, #5b7cfa, #9b6bff)",
-              color: "white",
-              fontWeight: 800,
-              cursor: loading ? "not-allowed" : "pointer",
-              opacity: loading ? 0.7 : 1,
-            }}
-          >
-            {loading ? "Submitting..." : "Submit Application"}
+          <button className="btn btnPrimary" type="submit" disabled={loading}>
+            {loading ? "Submitting..." : "Submit application"}
           </button>
         </form>
 
         {/* Success Message */}
         {success && (
-          <div
-            style={{
-              marginTop: 14,
-              textAlign: "center",
-              fontWeight: 700,
-              color: success.includes("success") ? "#6ef2c4" : "#ffd59a",
-            }}
-          >
+          <div className="notice" style={{ borderColor: success.includes("success") ? "rgba(54,211,153,.35)" : undefined, background: success.includes("success") ? "rgba(54,211,153,.16)" : undefined, color: success.includes("success") ? "var(--ok)" : undefined }}>
             {success}
           </div>
         )}
-      </div>
-
-    </div>
+      </section>
+    </main>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: "calc(100vh - 120px)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-  },
-  card: {
-    width: "100%",
-    maxWidth: 760,
-    padding: 18,
-    borderRadius: 18,
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.10)",
-    backdropFilter: "blur(8px)",
-  },
-  row2: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: 10,
-  },
-  input: {
-    width: "100%",
-    padding: "12px 14px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(0,0,0,0.25)",
-    color: "#eaf0ff",
-    outline: "none",
-  },
-};

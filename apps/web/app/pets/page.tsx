@@ -10,85 +10,56 @@ export default async function PetsPage() {
 
   return (
     <main>
-      <h1 style={{ margin: "8px 0 14px", fontSize: 30 }}>Pets</h1>
-      <p style={{ marginTop: 0, color: "#b8c2e8" }}>
-        Browse available pets from our shelters.
-      </p>
+      <div className="row" style={{ marginTop: 18 }}>
+        <div>
+          <h1 className="h1">Available pets</h1>
+          <p className="muted" style={{ margin: 0 }}>
+            Only published listings that are currently available.
+          </p>
+        </div>
+        <Link href="/admin/pets" className="btn">
+          Manage pets (admin)
+        </Link>
+      </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-          gap: 14,
-          marginTop: 16,
-        }}
-      >
+      <div className="grid gridCards" style={{ marginTop: 16 }}>
         {pets.map((p) => (
           <Link
             key={p.id}
             href={`/pets/${p.id}`}
-            style={{
-              textDecoration: "none",
-              color: "#eaf0ff",
-              padding: 14,
-              borderRadius: 16,
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.10)",
-            }}
+            className="card"
           >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-              <div style={{ fontWeight: 800 }}>{p.name}</div>
-              <span
-                style={{
-                  fontSize: 12,
-                  padding: "4px 8px",
-                  borderRadius: 999,
-                  background:
-                    p.status === "AVAILABLE"
-                      ? "rgba(54, 211, 153, 0.18)"
-                      : "rgba(255, 181, 71, 0.18)",
-                  border:
-                    p.status === "AVAILABLE"
-                      ? "1px solid rgba(54, 211, 153, 0.35)"
-                      : "1px solid rgba(255, 181, 71, 0.35)",
-                  color: p.status === "AVAILABLE" ? "#6ef2c4" : "#ffd59a",
-                }}
-              >
-                {p.status}
-              </span>
-            </div>
-            <div style={{ marginTop: 8, color: "#b8c2e8" }}>
-              {p.species}
-              {p.breed ? ` · ${p.breed}` : ""} · {p.shelter.name}
-            </div>
-            {p.ageMonths !== null ? (
-              <div style={{ marginTop: 4, color: "#b8c2e8", fontSize: 13 }}>
-                Age: {formatAgeMonths(p.ageMonths)}
+            {p.media[0]?.url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className="thumb" src={p.media[0].url} alt={p.name} />
+            ) : (
+              <div className="thumb" aria-hidden="true" />
+            )}
+            <div className="cardBody">
+              <div className="cardTitleRow">
+                <div className="cardTitle">{p.name}</div>
+                <span className="badge badgeOk">{p.status}</span>
               </div>
-            ) : null}
-            {p.description ? (
-              <div style={{ marginTop: 10, color: "#d6ddff", fontSize: 13 }}>
-                {p.description}
+              <div className="cardMeta">
+                {p.species}
+                {p.breed ? ` · ${p.breed}` : ""} · {p.shelter.name}
+                {p.ageMonths !== null ? ` · ${formatAgeMonths(p.ageMonths)}` : ""}
               </div>
-            ) : null}
+              {p.description ? <div className="cardText">{p.description}</div> : null}
+            </div>
           </Link>
         ))}
       </div>
 
       {pets.length === 0 ? (
-        <div
-          style={{
-            marginTop: 16,
-            padding: 14,
-            borderRadius: 14,
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.10)",
-            color: "#b8c2e8",
-          }}
-        >
+        <div className="panel" style={{ marginTop: 16 }}>
           No published available pets yet. Add shelters first, then pets from{" "}
-          <Link href="/admin/shelters">Admin → Shelters</Link> and{" "}
-          <Link href="/admin/pets">Admin → Pets</Link>.
+          <Link href="/admin/shelters" className="btn btnPrimary" style={{ marginLeft: 8 }}>
+            Admin · Shelters
+          </Link>{" "}
+          <Link href="/admin/pets" className="btn" style={{ marginLeft: 8 }}>
+            Admin · Pets
+          </Link>
         </div>
       ) : null}
     </main>
