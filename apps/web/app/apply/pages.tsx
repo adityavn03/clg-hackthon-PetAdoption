@@ -57,7 +57,7 @@ export default function ApplyPage() {
         petValue: "",
       });
       
-      // Auto-hide success message after 8 seconds
+      // Auto-hide success message after 8 seconds .
       setTimeout(() => setSuccess(false), 8000);
     } catch (err) {
       console.error(err);
