@@ -14,12 +14,12 @@ export async function GET(req: Request) {
   const pets = await prisma.pet.findMany({
     where: {
       deletedAt: null,
-      ...(status === "AVAILABLE" ||
+      status: (status === "AVAILABLE" ||
       status === "RESERVED" ||
       status === "ADOPTED" ||
       status === "ARCHIVED"
-        ? { status }
-        : {}),
+        ? status
+        : "AVAILABLE") as any,
       ...(published === "true" ? { isPublished: true } : {}),
       ...(asString(shelterId) ? { shelterId: shelterId! } : {}),
     },

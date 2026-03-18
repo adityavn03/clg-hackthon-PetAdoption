@@ -1,76 +1,76 @@
-import { prisma } from "@repo/db/client";
-import Link from "next/link";
+"use client";
 
-export default async function PetsPage() {
-  const pets = await prisma.pet.findMany({
-    where: { deletedAt: null, isPublished: true, status: "AVAILABLE" },
-    orderBy: { createdAt: "desc" },
-    include: { shelter: true, media: { orderBy: { sortOrder: "asc" } } },
-  });
+import { motion } from "framer-motion";
+import { Section } from "../../components/layout/Section";
+import { PetGrid } from "../../components/pets/PetGrid";
+import { FeaturedPet } from "../../components/pets/FeaturedPet";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Shield, ArrowRight } from "lucide-react";
+
+export default function PetsPage() {
+  const [featuredPet, setFeaturedPet] = useState<any>(null);
+
+  useEffect(() => {
+    // Fetch a featured pet (just the first available one for now)
+    fetch("/api/pets?status=AVAILABLE&published=true")
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setFeaturedPet(data[0]);
+        }
+      });
+  }, []);
 
   return (
-    <main>
-      <div className="row" style={{ marginTop: 18 }}>
-        <div>
-          <h1 className="h1">Available pets</h1>
-          <p className="muted" style={{ margin: 0 }}>
-            Only published listings that are currently available.
-          </p>
-        </div>
-        <Link href="/admin/pets" className="btn">
-          Manage pets (admin)
-        </Link>
+    <main className="min-h-screen pb-20 relative overflow-hidden bg-white dark:bg-gray-950">
+      {/* Background Animated Blobs */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full pointer-events-none">
+        <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-brand-primary/5 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[20%] right-[-5%] w-[400px] h-[400px] bg-accent-purple/5 rounded-full blur-[100px] animate-pulse delay-1000" />
       </div>
 
-      <div className="grid gridCards" style={{ marginTop: 16 }}>
-        {pets.map((p) => (
-          <Link
-            key={p.id}
-            href={`/pets/${p.id}`}
-            className="card"
+      <Section className="relative z-10 pt-16 md:pt-24">
+        {/* Header Section */}
+        <div className="mb-16 md:mb-24 flex flex-col md:flex-row md:items-end justify-between gap-8">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
           >
-            {p.media[0]?.url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img className="thumb" src={p.media[0].url} alt={p.name} />
-            ) : (
-              <div className="thumb" aria-hidden="true" />
-            )}
-            <div className="cardBody">
-              <div className="cardTitleRow">
-                <div className="cardTitle">{p.name}</div>
-                <span className="badge badgeOk">{p.status}</span>
-              </div>
-              <div className="cardMeta">
-                {p.species}
-                {p.breed ? ` · ${p.breed}` : ""} · {p.shelter.name}
-                {p.ageMonths !== null ? ` · ${formatAgeMonths(p.ageMonths)}` : ""}
-              </div>
-              {p.description ? <div className="cardText">{p.description}</div> : null}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-primary/10 border border-brand-primary/20 text-brand-primary text-[10px] font-black uppercase tracking-widest mb-6">
+              Verified Listings Only
             </div>
-          </Link>
-        ))}
-      </div>
+            <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-gray-900 dark:text-white leading-[0.9] font-outfit uppercase">
+              Browse <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary via-accent-purple to-brand-secondary underline decoration-brand-primary/30 decoration-8 underline-offset-10">Available</span> <br />
+              Pets.
+            </h1>
+          </motion.div>
 
-      {pets.length === 0 ? (
-        <div className="panel" style={{ marginTop: 16 }}>
-          No published available pets yet. Add shelters first, then pets from{" "}
-          <Link href="/admin/shelters" className="btn btnPrimary" style={{ marginLeft: 8 }}>
-            Admin · Shelters
-          </Link>{" "}
-          <Link href="/admin/pets" className="btn" style={{ marginLeft: 8 }}>
-            Admin · Pets
-          </Link>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="md:text-right"
+          >
+            <p className="text-xl text-gray-500 dark:text-gray-400 font-medium max-w-md md:ml-auto mb-8">
+              Every pet listed here is waiting for a loving home. Use filters to find your perfect match.
+            </p>
+            <Link href="/admin/pets">
+              <button className="inline-flex items-center gap-2 text-sm font-black uppercase tracking-widest text-gray-900 dark:text-white hover:text-brand-primary transition-colors group">
+                <Shield size={16} className="text-brand-primary" />
+                Manage Listings (Staff)
+                <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              </button>
+            </Link>
+          </motion.div>
         </div>
-      ) : null}
+
+        {/* Featured Pet Highlight */}
+        {featuredPet && <FeaturedPet pet={featuredPet} />}
+
+        {/* Main Interactive Grid */}
+        <PetGrid />
+      </Section>
     </main>
   );
 }
-
-function formatAgeMonths(months: number): string {
-  const m = Math.max(0, Math.floor(months));
-  if (m < 12) return `${m} months`;
-  const years = Math.floor(m / 12);
-  const rem = m % 12;
-  return rem === 0 ? `${years} years` : `${years}y ${rem}m`;
-}
-

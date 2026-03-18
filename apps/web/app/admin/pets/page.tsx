@@ -1,6 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AdminLayout } from "../../../components/admin/AdminLayout";
+import { 
+  Plus, 
+  Search, 
+  Filter, 
+  MoreVertical, 
+  Edit2, 
+  Trash2, 
+  CheckCircle, 
+  XCircle,
+  Eye,
+  ArrowUpDown,
+  Dog,
+  Shield
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
 type Pet = {
@@ -22,6 +38,8 @@ export default function AdminPetsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [filter, setFilter] = useState<"ALL" | Pet["status"]>("ALL");
+  const [search, setSearch] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -35,414 +53,339 @@ export default function AdminPetsPage() {
   });
 
   const filtered = useMemo(() => {
-    if (filter === "ALL") return pets;
-    return pets.filter((p) => p.status === filter);
-  }, [pets, filter]);
+    return pets.filter((p) => {
+      const matchesFilter = filter === "ALL" || p.status === filter;
+      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
+                           p.breed?.toLowerCase().includes(search.toLowerCase());
+      return matchesFilter && matchesSearch;
+    });
+  }, [pets, filter, search]);
 
   async function refresh() {
     setLoading(true);
-    setError("");
     try {
       const [petsRes, sheltersRes] = await Promise.all([
-        fetch("/api/pets", { cache: "no-store" }),
-        fetch("/api/shelters", { cache: "no-store" }),
+        fetch("/api/pets"),
+        fetch("/api/shelters"),
       ]);
-      if (!sheltersRes.ok) throw new Error("Failed to load shelters");
-      const sheltersData = (await sheltersRes.json()) as {
-        id: string;
-        name: string;
-      }[];
+      const petsData = await petsRes.json();
+      const sheltersData = await sheltersRes.json();
+      setPets(petsData);
       setShelters(sheltersData);
-
-      const res = petsRes;
-      if (!res.ok) throw new Error("Failed to load pets");
-      const data = (await res.json()) as Pet[];
-      setPets(data);
-      setForm((f) => ({
-        ...f,
-        shelterId: f.shelterId || sheltersData[0]?.id || "",
-      }));
+      if (sheltersData.length > 0 && !form.shelterId) {
+        setForm(f => ({ ...f, shelterId: sheltersData[0].id }));
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load pets");
+      setError("Failed to sync data");
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    void refresh();
-  }, []);
+  useEffect(() => { refresh(); }, []);
 
-  async function createPet(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
     try {
-      if (!form.shelterId) throw new Error("Create a shelter first");
       const res = await fetch("/api/pets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: form.name,
-          species: form.species,
-          breed: form.breed || undefined,
+          ...form,
           ageMonths: form.ageMonths === "" ? undefined : Number(form.ageMonths),
-          shelterId: form.shelterId,
-          isPublished: form.isPublished,
-          description: form.description || undefined,
-          imageUrl: form.imageUrl || undefined,
         }),
       });
-      if (!res.ok) {
-        const j = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(j?.error ?? "Failed to create pet");
-      }
+      if (!res.ok) throw new Error("Creation failed");
+      setShowCreateModal(false);
       setForm({
         name: "",
         species: "DOG",
         breed: "",
         ageMonths: "",
-        shelterId: form.shelterId,
+        shelterId: shelters[0]?.id || "",
         isPublished: true,
         description: "",
         imageUrl: "",
       });
-      await refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create pet");
+      refresh();
+    } catch (err: any) {
+      setError(err.message);
     }
   }
 
-  async function setStatus(petId: string, status: Pet["status"]) {
-    setError("");
-    const res = await fetch(`/api/pets/${petId}`, {
+  async function updateStatus(id: string, status: Pet["status"]) {
+    await fetch(`/api/pets/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
-    if (!res.ok) {
-      setError("Failed to update status");
-      return;
-    }
-    await refresh();
+    refresh();
   }
 
-  async function setPublished(petId: string, isPublished: boolean) {
-    setError("");
-    const res = await fetch(`/api/pets/${petId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isPublished }),
-    });
-    if (!res.ok) {
-      setError("Failed to update publish state");
-      return;
-    }
-    await refresh();
-  }
-
-  async function deletePet(petId: string) {
-    setError("");
-    const ok = confirm("Delete this pet?");
-    if (!ok) return;
-    const res = await fetch(`/api/pets/${petId}`, { method: "DELETE" });
-    if (!res.ok) {
-      setError("Failed to delete pet");
-      return;
-    }
-    await refresh();
+  async function deletePet(id: string) {
+    if (!confirm("Are you sure?")) return;
+    await fetch(`/api/pets/${id}`, { method: "DELETE" });
+    refresh();
   }
 
   return (
-    <main>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-        <div>
-          <h1 style={{ margin: "8px 0 10px", fontSize: 30 }}>Admin · Pets</h1>
-          <p style={{ marginTop: 0, color: "#b8c2e8" }}>
-            Create pets and manage availability.
-          </p>
+    <AdminLayout title="Pets Management">
+      {/* Search & Actions Bar */}
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-8">
+        <div className="flex items-center gap-4 w-full md:w-auto">
+           <div className="relative flex-1 md:w-80 group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-purple-500 transition-colors" size={18} />
+              <input 
+                type="text" 
+                placeholder="Search pets..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 text-sm font-medium shadow-sm transition-all"
+              />
+           </div>
+           <button className="p-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 text-gray-500 hover:text-purple-500 transition-all shadow-sm">
+              <Filter size={18} />
+           </button>
         </div>
-        <div style={{ alignSelf: "flex-start" }}>
-          <Link href="/admin" style={{ color: "#c7d2ff" }}>
-            ← Admin home
-          </Link>
-        </div>
+
+        <button 
+          onClick={() => setShowCreateModal(true)}
+          className="w-full md:w-auto px-6 py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-black text-sm uppercase tracking-widest shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2 transition-all"
+        >
+           <Plus size={18} />
+           List New Pet
+        </button>
       </div>
 
-      <section style={styles.panel}>
-        <h2 style={styles.h2}>Create pet</h2>
-        <form onSubmit={createPet} style={{ display: "grid", gap: 10 }}>
-          <div style={styles.row2}>
-            <select
-              style={styles.select}
-              value={form.shelterId}
-              onChange={(e) => setForm((f) => ({ ...f, shelterId: e.target.value }))}
-              required
-              aria-label="Shelter"
-            >
-              <option value="" disabled>
-                Select shelter…
-              </option>
-              {shelters.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
+      {/* Stats Cards Small */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+         <StatsMini label="Available" value={pets.filter(p => p.status === 'AVAILABLE').length} color="text-green-500" bg="bg-green-500/10" />
+         <StatsMini label="Adopted" value={pets.filter(p => p.status === 'ADOPTED').length} color="text-purple-500" bg="bg-purple-500/10" />
+         <StatsMini label="Reserved" value={pets.filter(p => p.status === 'RESERVED').length} color="text-blue-500" bg="bg-blue-500/10" />
+         <StatsMini label="Total" value={pets.length} color="text-gray-500" bg="bg-gray-500/10" />
+      </div>
+
+      {/* Data Table */}
+      <div className="bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+        <table className="w-full text-left">
+           <thead>
+              <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20">
+                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Pet Info</th>
+                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Shelter</th>
+                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Status</th>
+                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Identity</th>
+                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 text-right">Actions</th>
+              </tr>
+           </thead>
+           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              {filtered.map((pet) => (
+                 <motion.tr 
+                    layout
+                    key={pet.id} 
+                    className="group hover:bg-gray-50/50 dark:hover:bg-gray-800/10 transition-colors"
+                 >
+                    <td className="px-6 py-4">
+                       <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-purple-600 font-black relative overflow-hidden group">
+                             {pet.species === 'DOG' ? <Dog size={24} /> : <div className="text-xl">🐱</div>}
+                          </div>
+                          <div>
+                             <p className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight">{pet.name}</p>
+                             <p className="text-[10px] font-bold text-gray-500 uppercase">{pet.breed || pet.species} · {pet.ageMonths || '?'}m</p>
+                          </div>
+                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                       <p className="text-xs font-bold text-gray-700 dark:text-gray-300">{pet.shelter.name}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                       <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                          pet.status === 'AVAILABLE' ? 'bg-green-500/10 text-green-600' :
+                          pet.status === 'ADOPTED' ? 'bg-purple-500/10 text-purple-600' :
+                          'bg-orange-500/10 text-orange-600'
+                       }`}>
+                          {pet.status}
+                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                       <code className="text-[10px] font-bold text-gray-400 bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded opacity-50 group-hover:opacity-100 transition-opacity">
+                          {pet.id.slice(0, 8)}...
+                       </code>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Link href={`/pets/${pet.id}`}>
+                             <button className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-purple-600 transition-all">
+                                <Eye size={16} />
+                             </button>
+                          </Link>
+                          <button className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-blue-600 transition-all">
+                             <Edit2 size={16} />
+                          </button>
+                          <button 
+                            onClick={() => deletePet(pet.id)}
+                            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-red-500 transition-all"
+                          >
+                             <Trash2 size={16} />
+                          </button>
+                       </div>
+                    </td>
+                 </motion.tr>
               ))}
-            </select>
-            <select
-              style={styles.select}
-              value={form.species}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, species: e.target.value as Pet["species"] }))
-              }
-              aria-label="Species"
-            >
-              <option value="DOG">DOG</option>
-              <option value="CAT">CAT</option>
-              <option value="OTHER">OTHER</option>
-            </select>
-          </div>
-          <div style={styles.row2}>
-            <input
-              style={styles.input}
-              placeholder="Name"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              required
-            />
-            <input
-              style={styles.input}
-              placeholder="Breed (optional)"
-              value={form.breed}
-              onChange={(e) => setForm((f) => ({ ...f, breed: e.target.value }))}
-            />
-          </div>
-          <div style={styles.row2}>
-            <input
-              style={styles.input}
-              placeholder="Age in months (optional)"
-              inputMode="numeric"
-              value={form.ageMonths}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, ageMonths: e.target.value }))
-              }
-            />
-            <input
-              style={styles.input}
-              placeholder="Image URL (optional)"
-              value={form.imageUrl}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, imageUrl: e.target.value }))
-              }
-            />
-          </div>
-          <label style={{ color: "#b8c2e8", fontSize: 13, display: "flex", gap: 10, alignItems: "center" }}>
-            <input
-              type="checkbox"
-              checked={form.isPublished}
-              onChange={(e) => setForm((f) => ({ ...f, isPublished: e.target.checked }))}
-            />
-            Published (visible on /pets)
-          </label>
-          <textarea
-            style={{ ...styles.input, minHeight: 80, resize: "vertical" }}
-            placeholder="Description (optional)"
-            value={form.description}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, description: e.target.value }))
-            }
-          />
-          <button style={styles.primary} type="submit">
-            Create
-          </button>
-        </form>
-        {shelters.length === 0 ? (
-          <div style={{ marginTop: 10, color: "#ffd59a" }}>
-            No shelters found. Create one at{" "}
-            <Link href="/admin/shelters" style={{ color: "#c7d2ff" }}>
-              Admin → Shelters
-            </Link>
-            .
-          </div>
-        ) : null}
-      </section>
-
-      <section style={{ marginTop: 14 }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: 18 }}>All pets</h2>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <label style={{ color: "#b8c2e8", fontSize: 13 }}>Filter</label>
-            <select
-              value={filter}
-              onChange={(e) =>
-                setFilter(e.target.value as "ALL" | Pet["status"])
-              }
-              style={styles.select}
-            >
-              <option value="ALL">All</option>
-              <option value="AVAILABLE">AVAILABLE</option>
-              <option value="RESERVED">RESERVED</option>
-              <option value="ADOPTED">ADOPTED</option>
-              <option value="ARCHIVED">ARCHIVED</option>
-            </select>
-            <button style={styles.secondary} onClick={() => void refresh()}>
-              Refresh
-            </button>
-          </div>
-        </div>
-
-        {error ? <div style={styles.error}>{error}</div> : null}
-        {loading ? (
-          <div style={{ color: "#b8c2e8", marginTop: 10 }}>Loading…</div>
-        ) : (
-          <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
-            {filtered.map((p) => (
-              <div key={p.id} style={styles.panel}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 900 }}>
-                      {p.name}{" "}
-                      <span style={{ color: "#b8c2e8", fontWeight: 600 }}>
-                        · {p.species}
-                        {p.breed ? ` · ${p.breed}` : ""}
-                        {p.ageMonths !== null ? ` · ${p.ageMonths}m` : ""}
-                        · {p.shelter.name}
-                      </span>
-                    </div>
-                    <div style={{ color: "#b8c2e8", marginTop: 6, fontSize: 13 }}>
-                      id: <code style={styles.code}>{p.id}</code>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <Link href={`/pets/${p.id}`} style={{ color: "#c7d2ff" }}>
-                      View
-                    </Link>
-                    <label style={{ color: "#b8c2e8", fontSize: 13, display: "flex", gap: 8, alignItems: "center" }}>
-                      <input
-                        type="checkbox"
-                        checked={p.isPublished}
-                        onChange={(e) => void setPublished(p.id, e.target.checked)}
-                      />
-                      Published
-                    </label>
-                    <select
-                      value={p.status}
-                      onChange={(e) =>
-                        void setStatus(p.id, e.target.value as Pet["status"])
-                      }
-                      style={styles.select}
-                      aria-label="Set status"
-                    >
-                      <option value="AVAILABLE">AVAILABLE</option>
-                      <option value="RESERVED">RESERVED</option>
-                      <option value="ADOPTED">ADOPTED</option>
-                      <option value="ARCHIVED">ARCHIVED</option>
-                    </select>
-                    <button style={styles.danger} onClick={() => void deletePet(p.id)}>
-                      Delete
-                    </button>
-                  </div>
-                </div>
-                {p.description ? (
-                  <div style={{ marginTop: 10, color: "#d6ddff", lineHeight: 1.55 }}>
-                    {p.description}
-                  </div>
-                ) : null}
+           </tbody>
+        </table>
+        {filtered.length === 0 && (
+           <div className="py-20 text-center">
+              <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-2xl flex items-center justify-center text-gray-300 mx-auto mb-4">
+                 <Search size={32} />
               </div>
-            ))}
-            {filtered.length === 0 ? (
-              <div style={{ color: "#b8c2e8" }}>No pets.</div>
-            ) : null}
-          </div>
+              <p className="text-sm font-black text-gray-400 uppercase tracking-widest">No pets found matching your criteria</p>
+           </div>
         )}
-      </section>
-    </main>
+      </div>
+
+      {/* Creation Modal */}
+      <AnimatePresence>
+         {showCreateModal && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+               <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setShowCreateModal(false)}
+                  className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+               />
+               <motion.div 
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                  className="w-full max-w-2xl bg-white dark:bg-gray-950 rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden"
+               >
+                  <div className="p-8 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/20">
+                     <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+                           <Plus size={20} />
+                        </div>
+                        <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">List New Pet</h2>
+                     </div>
+                     <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                        <XCircle size={24} />
+                     </button>
+                  </div>
+
+                  <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto max-h-[70vh]">
+                     <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Pet Name</label>
+                           <input 
+                              required
+                              value={form.name}
+                              onChange={(e) => setForm({...form, name: e.target.value})}
+                              placeholder="e.g. Buddy"
+                              className="w-full px-5 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 text-sm font-medium transition-all"
+                           />
+                        </div>
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Species</label>
+                           <select 
+                              value={form.species}
+                              onChange={(e) => setForm({...form, species: e.target.value as any})}
+                              className="w-full px-5 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 text-sm font-medium transition-all"
+                           >
+                              <option value="DOG">DOG</option>
+                              <option value="CAT">CAT</option>
+                              <option value="OTHER">OTHER</option>
+                           </select>
+                        </div>
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Breed</label>
+                           <input 
+                              value={form.breed}
+                              onChange={(e) => setForm({...form, breed: e.target.value})}
+                              placeholder="e.g. Golden Retriever"
+                              className="w-full px-5 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 text-sm font-medium transition-all"
+                           />
+                        </div>
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Age (Months)</label>
+                           <input 
+                              type="number"
+                              value={form.ageMonths}
+                              onChange={(e) => setForm({...form, ageMonths: e.target.value})}
+                              placeholder="e.g. 12"
+                              className="w-full px-5 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 text-sm font-medium transition-all"
+                           />
+                        </div>
+                     </div>
+
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Shelter</label>
+                        <select 
+                           value={form.shelterId}
+                           onChange={(e) => setForm({...form, shelterId: e.target.value})}
+                           className="w-full px-5 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 text-sm font-medium transition-all"
+                        >
+                           {shelters.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                     </div>
+
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Image URL</label>
+                        <input 
+                           value={form.imageUrl}
+                           onChange={(e) => setForm({...form, imageUrl: e.target.value})}
+                           placeholder="https://images.unsplash.com/..."
+                           className="w-full px-5 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 text-sm font-medium transition-all"
+                        />
+                     </div>
+
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Description</label>
+                        <textarea 
+                           value={form.description}
+                           onChange={(e) => setForm({...form, description: e.target.value})}
+                           placeholder="Tell us about the pet..."
+                           className="w-full px-5 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 text-sm font-medium transition-all min-h-[120px]"
+                        />
+                     </div>
+
+                     <div className="pt-4 flex gap-4">
+                        <button 
+                           type="button"
+                           onClick={() => setShowCreateModal(false)}
+                           className="flex-1 py-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-black text-sm uppercase tracking-widest transition-all"
+                        >
+                           Cancel
+                        </button>
+                        <button 
+                           type="submit"
+                           className="flex-[2] py-4 rounded-2xl bg-purple-600 text-white font-black text-sm uppercase tracking-widest shadow-xl shadow-purple-500/20 hover:bg-purple-700 transition-all"
+                        >
+                           Publish Listing
+                        </button>
+                     </div>
+                  </form>
+               </motion.div>
+            </div>
+         )}
+      </AnimatePresence>
+    </AdminLayout>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  panel: {
-    padding: 14,
-    borderRadius: 16,
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.10)",
-  },
-  h2: { margin: "0 0 10px", fontSize: 18 },
-  row2: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: 10,
-  },
-  input: {
-    width: "100%",
-    padding: "12px 14px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(0,0,0,0.25)",
-    color: "#eaf0ff",
-    outline: "none",
-  },
-  select: {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(0,0,0,0.25)",
-    color: "#eaf0ff",
-  },
-  primary: {
-    padding: "12px 14px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "linear-gradient(135deg, #5b7cfa, #9b6bff)",
-    color: "white",
-    fontWeight: 900,
-    cursor: "pointer",
-  },
-  secondary: {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.08)",
-    color: "#eaf0ff",
-    fontWeight: 800,
-    cursor: "pointer",
-  },
-  danger: {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,120,120,0.25)",
-    background: "rgba(255,120,120,0.12)",
-    color: "#ffd1d1",
-    fontWeight: 900,
-    cursor: "pointer",
-  },
-  error: {
-    marginTop: 10,
-    padding: 12,
-    borderRadius: 12,
-    background: "rgba(255,181,71,0.14)",
-    border: "1px solid rgba(255,181,71,0.30)",
-    color: "#ffd59a",
-  },
-  code: {
-    padding: "2px 6px",
-    borderRadius: 8,
-    background: "rgba(0,0,0,0.35)",
-    border: "1px solid rgba(255,255,255,0.10)",
-  },
-};
-
+function StatsMini({ label, value, color, bg }: { label: string, value: number, color: string, bg: string }) {
+  return (
+     <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm flex items-center justify-between">
+        <div>
+           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+           <p className={`text-xl font-black ${color} font-outfit uppercase tracking-tighter`}>{value}</p>
+        </div>
+        <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center opacity-80`}>
+           <Shield size={18} className={color} />
+        </div>
+     </div>
+  )
+}

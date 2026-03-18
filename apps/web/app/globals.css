@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Design tokens */
 :root {
   /* Warm Light Theme Tokens */
@@ -32,6 +36,28 @@
   --shadow-lg: 0 24px 48px rgba(0,0,0,0.08);
   --shadow-colored: 0 16px 32px rgba(255, 107, 107, 0.25);
   --shadow-glass: 0 8px 32px rgba(31, 38, 135, 0.05);
+}
+
+.dark {
+  --bg-primary: #0F172A;
+  --bg-secondary: #1E293B;
+  --bg-tertiary: #0F172A;
+  
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #64748B;
+  
+  --border-light: rgba(255, 255, 255, 0.1);
+  --border-med: rgba(255, 255, 255, 0.2);
+  
+  --glass-bg: rgba(15, 23, 42, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.15);
+  
+  --shadow-sm: 0 4px 12px rgba(0,0,0,0.3);
+  --shadow-md: 0 12px 32px rgba(0,0,0,0.5);
+  --shadow-lg: 0 24px 48px rgba(0,0,0,0.7);
+  --shadow-colored: 0 16px 32px rgba(255, 107, 107, 0.15);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 * { box-sizing: border-box; }
@@ -230,7 +256,7 @@ h1, h2, h3, h4, h5, h6 { margin: 0; font-family: 'Outfit', 'Inter', system-ui, s
   height: 100%;
   object-fit: contain;
   z-index: 10;
-  drop-shadow: var(--shadow-lg);
+  filter: drop-shadow(var(--shadow-lg));
 }
 
 /* Buttons */
@@ -454,4 +480,135 @@ h1, h2, h3, h4, h5, h6 { margin: 0; font-family: 'Outfit', 'Inter', system-ui, s
   .nav {
     display: none;
   }
+}
+
+/* =========================================
+   Restored Components (Pets / Admin List) 
+   ========================================= */
+
+.panel {
+  padding: 24px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: var(--bg-tertiary);
+  box-shadow: var(--shadow-sm);
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.grid {
+  display: grid;
+  gap: 24px;
+}
+
+.gridCards {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.card {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: var(--bg-tertiary);
+  text-decoration: none;
+  color: var(--text-primary);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(255, 107, 107, 0.2);
+  box-shadow: var(--shadow-md);
+}
+
+.thumb {
+  width: 100%;
+  height: 220px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
+  object-fit: cover;
+  display: block;
+}
+
+.cardBody {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.cardTitleRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.cardTitle {
+  font-weight: 800;
+  font-size: 1.25rem;
+}
+
+.cardMeta {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.cardText {
+  margin-top: 16px;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  letter-spacing: 0.05em;
+}
+
+.badgeOk {
+  background: rgba(78, 205, 196, 0.15);
+  color: #2F9E95;
+}
+
+.badgeWarn {
+  background: rgba(249, 212, 35, 0.2);
+  color: #B28E00;
+}
+
+.badgeDanger {
+  background: rgba(255, 107, 107, 0.15);
+  color: #E53E3E;
+}
+
+.badgeInfo {
+  background: rgba(157, 114, 255, 0.15);
+  color: #6B46C1;
 }

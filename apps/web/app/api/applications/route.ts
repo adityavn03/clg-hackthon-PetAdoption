@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@repo/db/client";
+import { getCurrentUser } from "../../../lib/auth";
 
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
@@ -49,6 +50,8 @@ export async function POST(req: Request) {
       );
     }
 
+    const user = await getCurrentUser();
+
     const application = await prisma.application.create({
       data: {
         applicantName: b.applicantName.trim(),
@@ -56,8 +59,10 @@ export async function POST(req: Request) {
         applicantPhone: isNonEmptyString(b.applicantPhone) ? b.applicantPhone.trim() : null,
         applicantAddress: isNonEmptyString(b.applicantAddress) ? b.applicantAddress.trim() : null,
         message: isNonEmptyString(b.message) ? b.message.trim() : null,
+        petValue: b.petValue ? parseFloat(String(b.petValue)) : null,
         petId: pet.id,
         shelterId: pet.shelterId,
+        userId: user ? (user.id as string) : null,
       },
     });
 

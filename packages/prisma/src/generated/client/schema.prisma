@@ -1,0 +1,235 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  username     String   @unique
+  passwordHash String
+  role         UserRole @default(USER)
+  isActive     Boolean  @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  applications         Application[] // applicant
+  reviewedApplications Application[]         @relation("ReviewedBy")
+  decisions            ApplicationDecision[]
+  auditLogs            AuditLog[]            @relation("AuditActor")
+
+  @@index([role])
+  @@index([deletedAt])
+}
+
+model Shelter {
+  id      String  @id @default(uuid())
+  name    String
+  slug    String  @unique
+  email   String?
+  phone   String?
+  website String?
+
+  addressId String?
+  address   Address? @relation(fields: [addressId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  pets         Pet[]
+  applications Application[]
+  auditLogs    AuditLog[] // ✅ added
+
+  @@index([deletedAt])
+}
+
+model Address {
+  id      String  @id @default(uuid())
+  line1   String
+  line2   String?
+  city    String
+  state   String?
+  postal  String?
+  country String  @default("IN")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shelters Shelter[]
+}
+
+model Pet {
+  id        String  @id @default(uuid())
+  shelterId String
+  shelter   Shelter @relation(fields: [shelterId], references: [id], onDelete: Restrict)
+
+  name         String
+  species      Species
+  breed        String?
+  sex          Sex?
+  size         Size?
+  ageMonths    Int?
+  color        String?
+  isNeutered   Boolean?
+  isVaccinated Boolean?
+  status       PetStatus @default(AVAILABLE)
+  description  String?
+
+  isPublished Boolean @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  media        PetMedia[]
+  applications Application[]
+
+  @@index([shelterId])
+  @@index([status, isPublished])
+  @@index([deletedAt])
+}
+
+model PetMedia {
+  id    String @id @default(uuid())
+  petId String
+  pet   Pet    @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  url       String
+  kind      MediaKind @default(IMAGE)
+  sortOrder Int       @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([petId, sortOrder])
+}
+
+model Application {
+  id String @id @default(uuid())
+
+  shelterId String
+  shelter   Shelter @relation(fields: [shelterId], references: [id], onDelete: Restrict)
+
+  petId String
+  pet   Pet    @relation(fields: [petId], references: [id], onDelete: Restrict)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  applicantName    String
+  applicantEmail   String
+  applicantPhone   String?
+  applicantAddress String?
+  message          String?
+  petValue         Float?
+
+  status ApplicationStatus @default(SUBMITTED)
+
+  reviewedById String?
+  reviewedBy   User?     @relation("ReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  decisions ApplicationDecision[]
+  auditLogs AuditLog[]            @relation("ApplicationAuditLogs")
+
+  @@unique([petId, applicantEmail, status], map: "uniq_active_application_per_pet_email")
+  @@index([shelterId, petId, createdAt])
+  @@index([userId])
+  @@index([status])
+}
+
+model ApplicationDecision {
+  id            String      @id @default(uuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  status ApplicationStatus
+  note   String?
+
+  decidedById String?
+  decidedBy   User?   @relation(fields: [decidedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([applicationId, createdAt])
+}
+
+model AuditLog {
+  id String @id @default(uuid())
+
+  shelterId String?
+  shelter   Shelter? @relation(fields: [shelterId], references: [id], onDelete: SetNull)
+
+  actorId String?
+  actor   User?   @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  applicationId String?
+  application   Application? @relation("ApplicationAuditLogs", fields: [applicationId], references: [id], onDelete: SetNull)
+
+  entityType String
+  entityId   String
+  action     String
+  before     Json?
+  after      Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+enum UserRole {
+  USER
+  STAFF
+  ADMIN
+}
+
+enum Species {
+  DOG
+  CAT
+  OTHER
+}
+
+enum Sex {
+  MALE
+  FEMALE
+  UNKNOWN
+}
+
+enum Size {
+  SMALL
+  MEDIUM
+  LARGE
+  XL
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+}
+
+enum PetStatus {
+  AVAILABLE
+  RESERVED
+  ADOPTED
+  ARCHIVED
+}
+
+enum ApplicationStatus {
+  SUBMITTED
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
